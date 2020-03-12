@@ -116,19 +116,17 @@ int telex(char *word, char c) {
     } else if(!e && is_ntd(c) && is_ntd(l_vowel)) {
         if(c == l_vowel && (c == 'a' || c == 'e' || c == 'o')) {
             strcat(word, "^");
-            return 0;
         } else if(c == 'w' && (l_vowel == 'a' || l_vowel == 'o' || l_vowel == 'u')) {
             strcat(word, ")");
-            return 0;
         }
+        return 0;
     } else if(!e && is_ntd(c) && (l_vowel == '^' || l_vowel == ')')) {
         if(l_vowel == '^' && c == sl_vowel && (c == 'a' || c == 'e' || c == 'o')) {
             word[strlen(word) - 1] = c;
-            return 0;
         } else if(l_vowel == ')' && c == 'w' && (sl_vowel == 'a' || sl_vowel == 'o' || sl_vowel == 'u')) {
             word[strlen(word) - 1] = c;
-            return 0;
         }
+        return 0;
     } else if(v && e) {
         char regex_ntd[20] = "[aeou][\\^)`\\/>~.]+";
         regmatch_t matches[1];
@@ -162,11 +160,11 @@ int telex(char *word, char c) {
                 //printf("\n Word %s, Tone %c, Pos %d", word, tone, pos);
                 ins_char(word, tone, pos);
             }
-            return 0;
         } else if(is_tone(c) && !pos) {
             char tone = get_tone(c);
             ins_char(word, tone, strlen(beg_cons) + strlen(vowels) - 1);
         }
+        return 0;
     } else if(v && is_tone(c)) {
         char tone = get_tone(c);
         if(strlen(vowels) > 1) {
@@ -174,10 +172,10 @@ int telex(char *word, char c) {
         } else if(strlen(vowels) == 1) {
             ins_char(word, tone, strlen(beg_cons) + strlen(vowels) - 1);
         }
-    }
-    return 0;
+        return 0;
+    } else return 1;
 }
-
+// one thing i forgot, if add end consonant, move tone marker to last vowel
 int main() {
     int i;
     char test[][15] = {"d", "xo", "xo^", "mo", "mo)", "mu)o)t", "huye^`n", "huye^`n", "huye^n", "huyen", "hoi", "hi"};
