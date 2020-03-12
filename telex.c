@@ -21,6 +21,21 @@ void cpy_range(char *str1, char *str2, int x1, int x2) {
     str1[j] = 0;
 }
 
+int is_vowel(char c) {
+    int vowel = 0;
+    switch(c) {
+        case 'a':
+        case 'e':
+        case 'i':
+        case 'o':
+        case 'u':
+        case 'y':
+            vowel = 1;
+            break;
+    }
+    return vowel;
+}
+
 int is_ntd(char c) {
     int ntd = 0;
     switch(c) {
@@ -80,6 +95,20 @@ int is_tone(char c) {
     return tone;
 }
 
+int is_end_cons(char c) {
+    int end_cons = 0;
+    switch(c) {
+        case 'c':
+        case 'm':
+        case 'n':
+        case 'p':
+        case 't':
+            end_cons = 1;
+            break;
+    }
+    return end_cons;
+}
+
 int telex(char *word, char c) {
     char regex_word[150] = REGEX;
     regex_t regex_compiled;
@@ -110,6 +139,7 @@ int telex(char *word, char c) {
     int e = end_cons[0] != 0;
     char l_vowel = vowels[strlen(vowels) - 1];
     char sl_vowel = vowels[strlen(vowels) - 2];
+    char tl_vowel = vowels[strlen(vowels) - 3];
     if(b && !v && !e && strlen(beg_cons) == 1 && beg_cons[0] == c && c == 'd') {
         strcat(word, "^");
         return 0;
@@ -147,7 +177,7 @@ int telex(char *word, char c) {
             offset = matches[0].rm_eo;
             cpy_range(slider, word, matches[0].rm_eo, strlen(slider));
             memset(vowels_copy, 0, sizeof(vowels_copy));
-            printf("\nChar - %c (pos: %d)\n", word[pos], pos);
+            //printf("\nChar - %c (pos: %d)\n", word[pos], pos);
         }
         regfree(&regex_compiled);
         if(is_tone(c) && pos) {
@@ -165,7 +195,7 @@ int telex(char *word, char c) {
             ins_char(word, tone, strlen(beg_cons) + strlen(vowels) - 1);
         }
         return 0;
-    } else if(v && is_tone(c)) {
+    } else if(v && !e && is_tone(c)) {
         char tone = get_tone(c);
         if(strlen(vowels) > 1) {
             ins_char(word, tone, strlen(beg_cons) + strlen(vowels) - 2);
@@ -173,19 +203,28 @@ int telex(char *word, char c) {
             ins_char(word, tone, strlen(beg_cons) + strlen(vowels) - 1);
         }
         return 0;
+    } else if(v && !e && is_end_cons(c)) {
+        //printf("\nChar - %c\n", word[2]);
+        if(is_vowel(l_vowel) && is_tone(sl_vowel) && is_vowel(tl_vowel)) {
+            int del_pos = strlen(word) - 2;
+            memmove(&word[del_pos], &word[del_pos + 1], strlen(word) - del_pos);
+            ins_char(word, sl_vowel, strlen(word) - 1);
+            ins_char(word, c, strlen(word) - 1);
+        }
+        return 0;
     } else return 1;
 }
-// one thing i forgot, if add end consonant, move tone marker to last vowel
 int main() {
     int i;
-    char test[][15] = {"d", "xo", "xo^", "mo", "mo)", "mu)o)t", "huye^`n", "huye^`n", "huye^n", "huyen", "hoi", "hi"};
-    char c[] = {'d', 'o', 'o', 'w', 'w', 's', 'z', 's', 'r', 'r', 's', 'r'};
-    char expect[][15] = {"d^", "xo^", "xoo", "mo)", "mow", "mu)o)/t", "huye^n", "huye^/n", "huye^>n", "huye>n", "ho/i", "hi>"};
-    for(i = 0; i < 12; i++) {
-        printf("Input: %s\n", test[i]);
-        printf("Input Char: %c\n", c[i]);
+    char test[][15] = {"d", "xo", "xo^", "mo", "mo)", "mu)o)t", "huye^`n", "huye^`n", "huye^n", "huyen", "hoi", "hi", "hi>e"};
+    char c[] = {'d', 'o', 'o', 'w', 'w', 's', 'z', 's', 'r', 'r', 's', 'r', 'n'};
+    char expect[][15] = {"d^", "xo^", "xoo", "mo)", "mow", "mu)o)/t", "huye^n", "huye^/n", "huye^>n", "huye>n", "ho/i", "hi>", "hie>n"};
+    for(i = 0; i < 13; i++) {
+        //printf("Input: %s\n", test[i]);
+        //printf("Input Char: %c\n", c[i]);
         if(telex(test[i], c[i])) printf("Not valid Vietnamese.\n");
-        printf("Output: %s\n", test[i]);
-        printf("Expected: %s\n\n", expect[i]);
+        //printf("Output: %s\n", test[i]);
+        //printf("Expected: %s\n\n", expect[i]);
+        if(!strcmp(test[i], expect[i])) printf("Success!\n");
     }
 }
