@@ -4,6 +4,15 @@
 
 #define REGEX "^(ngh|d\\^|ch|gh|kh|nh|ng|ph|th|tr|qu|[bcdghklmnpqrstvx]?)([aeiouy\\^)`\\/>~.]*)(ch|nh|ng|[cmnpt]?)$"
 
+void ins_char(char *str1, char c, int pos) {
+    int i, len;
+    pos += 2;
+    for(len = 0; str1[len] != 0; len++);
+    for(i = len; i >= pos; i--)
+        str1[i] = str1[i - 1];
+    str1[pos - 1] = c;
+}
+
 void cpy_range(char *str1, char *str2, int x1, int x2) {
     int i, j = 0;
     for(i = x1; i < x2; i++, ++j) {
@@ -24,6 +33,51 @@ int is_ntd(char c) {
             break;
     }
     return ntd;
+}
+
+char get_tone(char c) {
+    char tone;
+    switch(c) {
+        case 'z':
+            tone = 0;
+            break;
+        case 'f':
+            tone = '`';
+            break;
+        case 's':
+            tone = '/';
+            break;
+        case 'r':
+            tone = '>';
+            break;
+        case 'x':
+            tone = '~';
+            break;
+        case 'j':
+            tone = '.';
+            break;
+    }
+    return tone;
+}
+
+int is_tone(char c) {
+    int tone = 0;
+    switch(c) {
+        case '`':
+        case '/':
+        case '>':
+        case '~':
+        case '.':
+        case 'z':
+        case 'f':
+        case 's':
+        case 'r':
+        case 'x':
+        case 'j':
+            tone = 1;
+            break;
+    }
+    return tone;
 }
 
 int telex(char *word, char c) {
@@ -77,32 +131,59 @@ int telex(char *word, char c) {
         }
     } else if(v && e) {
         char regex_ntd[20] = "[aeou][\\^)`\\/>~.]+";
-        regmatch_t matches[2];
+        regmatch_t matches[1];
         regcomp(&regex_compiled, regex_ntd, REG_EXTENDED|REG_ICASE);
-        char slider[strlen(vowels) + 1];
-        strcpy(slider, vowels);
+        char slider[strlen(word) + 1];
+        strcpy(slider, word);
+        int pos = 0;
+        int offset = 0;
         for(int i = 0; i < 2; i++) {
-            printf("\nslider - %s\n", slider);
+            //printf("\nslider - %s\n", slider);
             if(regexec(&regex_compiled, slider, 1, matches, 0)) break;
-            if(matches[i].rm_so == (size_t) - 1) break;
+            if(matches[0].rm_so == (size_t) - 1) break;
             char vowels_copy[strlen(slider) + 1];
-            cpy_range(vowels_copy, slider, matches[i].rm_so, matches[i].rm_eo);
-            printf("%d - %s\n", i, vowels_copy);
-            if(matches[i].rm_eo == strlen(slider)) break;
-            // needs fixes here
+            cpy_range(vowels_copy, slider, matches[0].rm_so, matches[0].rm_eo);
+            //printf("%d - %s (%d - %d)\n", i, vowels_copy, matches[0].rm_so, matches[0].rm_eo);
+            pos = matches[0].rm_eo + offset - 1;
+            if(matches[0].rm_eo == strlen(slider)) break;
+            offset = matches[0].rm_eo;
+            cpy_range(slider, word, matches[0].rm_eo, strlen(slider));
             memset(vowels_copy, 0, sizeof(vowels_copy));
+            printf("\nChar - %c (pos: %d)\n", word[pos], pos);
         }
         regfree(&regex_compiled);
+        if(is_tone(c) && pos) {
+            char tone = get_tone(c);
+            if(!tone && is_tone(word[pos])) {
+                memmove(&word[pos], &word[pos + 1], strlen(word) - pos);
+            } else if(tone && is_tone(word[pos])) {
+                word[pos] = tone;
+            } else if(tone && !is_tone(word[pos])) {
+                //printf("\n Word %s, Tone %c, Pos %d", word, tone, pos);
+                ins_char(word, tone, pos);
+            }
+            return 0;
+        } else if(is_tone(c) && !pos) {
+            char tone = get_tone(c);
+            ins_char(word, tone, strlen(beg_cons) + strlen(vowels) - 1);
+        }
+    } else if(v && is_tone(c)) {
+        char tone = get_tone(c);
+        if(strlen(vowels) > 1) {
+            ins_char(word, tone, strlen(beg_cons) + strlen(vowels) - 2);
+        } else if(strlen(vowels) == 1) {
+            ins_char(word, tone, strlen(beg_cons) + strlen(vowels) - 1);
+        }
     }
     return 0;
 }
 
 int main() {
     int i;
-    char test[][15] = {"huye^`n", "d", "xo", "xo^", "mo", "mo)", "mu)o)t"};
-    char c[] = {'0', 'd', 'o', 'o', 'w', 'w', 's'};
-    char expect[][15] = {"huye^`n", "d^", "xo^", "xoo", "mo)", "mow", "mu)o)/t"};
-    for(i = 0; i < 7; i++) {
+    char test[][15] = {"d", "xo", "xo^", "mo", "mo)", "mu)o)t", "huye^`n", "huye^`n", "huye^n", "huyen", "hoi", "hi"};
+    char c[] = {'d', 'o', 'o', 'w', 'w', 's', 'z', 's', 'r', 'r', 's', 'r'};
+    char expect[][15] = {"d^", "xo^", "xoo", "mo)", "mow", "mu)o)/t", "huye^n", "huye^/n", "huye^>n", "huye>n", "ho/i", "hi>"};
+    for(i = 0; i < 12; i++) {
         printf("Input: %s\n", test[i]);
         printf("Input Char: %c\n", c[i]);
         if(telex(test[i], c[i])) printf("Not valid Vietnamese.\n");
