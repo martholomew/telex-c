@@ -155,6 +155,7 @@ int telex(char *word, char c) {
         // If you hit 'w', 'd' or 'a', 'e' or 'o' thrice, no hat, just the letter
         if(v) vowels[v - 1] = c;
         else if(b) beg_cons[b - 1] = c;
+        else return 1;
     } else if(v && e && is_tone(c)) {
         if(tone_pos) {
             // If a tone character is found.
@@ -186,10 +187,15 @@ int telex(char *word, char c) {
         } else return 1;
     } else if(v && !e && is_tone(c)) {
         // If no ending, move tone to right after or after the first vowel depending on number of.
-        if(vowel_count > 1) {
-            ins_char(vowels, tone, strlen(word) - 2);
-        } else if(vowel_count == 1) {
-            cat_char(vowels, tone);
+        if(spec_pos && vowel_count < 4) {
+            ins_char(vowels, tone, spec_pos + 1);
+        } else if(tone_pos && vowel_count < 4) {
+            if(tone) vowels[tone_pos] = tone;
+            else memmove(&vowels[tone_pos], &vowels[tone_pos + 1], strlen(vowels) - tone_pos);
+        } else if(vowel_count == 3) {
+            ins_char(vowels, tone, 2);
+        } else if(vowel_count < 3) {
+            ins_char(vowels, tone, 1);
         } else return 1;
     } else return 1;
     // Cat all the goodness together.
@@ -203,27 +209,29 @@ int telex(char *word, char c) {
 int main() {
     printf("Tone &c tests.\n\n");
     int i;
-    char test[][15] = {"d", "d^", "xo", "xo^", "mo", "mo)", "mu)o)t", "huye^`n", "huye^`n", "huye^n", "huyen", "hoi", "hi", "hi>e", "hi^", "huoy", "on", "huyon", "hon", "ho^yun", "huon", "hon"};
-    char c[] = {'d', 'd', 'o', 'o', 'w', 'w', 's', 'z', 's', 'r', 'r', 's', 'r', 'n', 'r', 'r', 'r', 'r', 'o', 'r', 'r', 'o'};
-    char expect[][15] = {"d^", "dd", "xo^", "xoo", "mo)", "mow", "mu)o)/t", "huye^n", "huye^/n", "huye^>n", "huy>en", "ho/i", "hi>", "hie>n", "hi^>", "huo>y", "o>n", "huy>on", "ho^n", "ho^>yun", "huo>n", "ho^n"};
-    for(i = 0; i < 22; i++) {
-        //printf("\nInput: %s\n", test[i]);
-        //printf("Input Char: %c\n", c[i]);
+    char test[][20] = {"d", "d^", "xo", "xo^", "mo", "mo)", "mu)o)t", "huye^`n", "huye^`n", "huye^n", "huyen", "hoi", "hi", "hi>e", "hi^", "huoy", "on", "huyon", "hon", "ho^yun", "huon", "hon", "ho/i", "ho/", "ho>"};
+    char c[] = {'d', 'd', 'o', 'o', 'w', 'w', 's', 'z', 's', 'r', 'r', 's', 'r', 'n', 'r', 'r', 'r', 'r', 'o', 'r', 'r', 'o', 'r', 'r', 'z'};
+    char expect[][15] = {"d^", "dd", "xo^", "xoo", "mo)", "mow", "mu)o)/t", "huye^n", "huye^/n", "huye^>n", "huy>en", "ho/i", "hi>", "hie>n", "hi^>", "huo>y", "o>n", "huy>on", "ho^n", "ho^>yun", "huo>n", "ho^n", "ho>i", "ho>", "ho"};
+    for(i = 0; i < 25; i++) {
+        printf("\nInput: %s\n", test[i]);
+        printf("Input Char: %c\n", c[i]);
         if(telex(test[i], c[i])) printf("||Not valid Vietnamese.||\n");
-        if(!strcmp(test[i], expect[i])) printf("||Success!||\n");
-        else printf("||Failure!||\n");
-        //printf("Output: %s\n", test[i]);
-        //printf("Expected: %s\n\n", expect[i]);
+        if(strcmp(test[i], expect[i])) {
+            printf("||Failure!||\n");
+            printf("Output: %s\n", test[i]);
+            printf("Expected: %s\n\n", expect[i]);
+        }
     }
     printf("Completed.\n\n");
     printf("Normal usage tests.\n\n");
     char norm_test[][15] = {"", "ba", "hu>oy", "xo^"};
     char norm_c[] = {'a', 'y', 'n', 'w'};
     for(i = 0; i < 3; i++) {
-        //printf("\nInput: %s\n", norm_test[i]);
-        //printf("Input Char: %c\n", norm_c[i]);
-        if(telex(norm_test[i], norm_c[i])) printf("||Success!||\n");
-        else printf("||Failure!||\n");
+        if(!telex(norm_test[i], norm_c[i])) {
+            printf("||Failure!||\n");
+            printf("\nInput: %s\n", norm_test[i]);
+            printf("Input Char: %c\n", norm_c[i]);
+        }
     }
     printf("Completed.\n");
 }
