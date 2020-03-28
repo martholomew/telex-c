@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <regex.h>
 #include <string.h>
+#include <ctype.h>
+
 
 #define REGEX "^(ngh|d\\^|ch|gh|kh|nh|ng|ph|th|tr|qu|[bcdghklmnpqrstvx]?)([aeiouy\\^)`\\/>~.]*)(ch|nh|ng|[cmnpt]?)$"
 
@@ -34,7 +36,7 @@ void cpy_range(char *str1, char *str2, int x1, int x2) {
 
 int is_vowel(char c) {
     int vowel = 0;
-    switch(c) {
+    switch(tolower(c)) {
         case 'a':
         case 'e':
         case 'i':
@@ -49,7 +51,7 @@ int is_vowel(char c) {
 
 char get_tone(char c) {
     char tone;
-    switch(c) {
+    switch(tolower(c)) {
         case 'z':
             tone = 0;
             break;
@@ -74,7 +76,7 @@ char get_tone(char c) {
 
 int is_tone(char c) {
     int tone = 0;
-    switch(c) {
+    switch(tolower(c)) {
         case '`':
         case '/':
         case '>':
@@ -94,7 +96,7 @@ int is_tone(char c) {
 
 int is_end_cons(char c) {
     int end_cons = 0;
-    switch(c) {
+    switch(tolower(c)) {
         case 'c':
         case 'm':
         case 'n':
@@ -142,16 +144,17 @@ int telex(char *word, char c) {
         else if(is_tone(vowels[i])) tone_pos = i;
     }
     char tone = get_tone(c);
-    if(b && !v && !e && b == 1 && beg_cons[0] == c && c == 'd') {
+    char lower_c = tolower(c);
+    if(b && !v && !e && b == 1 && tolower(beg_cons[0]) == lower_c && lower_c == 'd') {
         // Bar'd D only occurs at the beginning of a word.
         cat_char(beg_cons, '^');
-    } else if(v && c == vowels[v - 1] && (c == 'a' || c == 'e' || c == 'o')) {
+    } else if(v && lower_c == tolower(vowels[v - 1]) && (lower_c == 'a' || lower_c == 'e' || lower_c == 'o')) {
         // Two of either 'a', 'e', or 'o' puts a hat on em.
         cat_char(vowels, '^');
-    } else if(v && c == 'w' && (vowels[v - 1] == 'a' || vowels[v - 1] == 'o' || vowels[v - 1] == 'u')) {
+    } else if(v && lower_c == 'w' && (tolower(vowels[v - 1]) == 'a' || tolower(vowels[v - 1]) == 'o' || tolower(vowels[v - 1]) == 'u')) {
         // Any of these vowels with a 'w' after puts a tail thing on em.
         cat_char(vowels, ')');
-    } else if((!e && (c == vowels[v - 2] && vowels[v - 1] == '^') || (c == 'w' && vowels[v - 1] == ')')) || (!v && !e && !strcmp(beg_cons, "d^"))) {
+    } else if((!e && ((lower_c == tolower(vowels[v - 2]) && vowels[v - 1] == '^') || (lower_c == 'w' && vowels[v - 1] == ')'))) || (!v && (!strcmp(beg_cons, "d^") || !strcmp(beg_cons, "D^")))) {
         // If you hit 'w', 'd' or 'a', 'e' or 'o' thrice, no hat, just the letter
         if(v) vowels[v - 1] = c;
         else if(b) beg_cons[b - 1] = c;
@@ -209,9 +212,9 @@ int telex(char *word, char c) {
 int main() {
     printf("Tone &c tests.\n\n");
     int i;
-    char test[][20] = {"d", "d^", "xo", "xo^", "mo", "mo)", "mu)o)t", "huye^`n", "huye^`n", "huye^n", "huyen", "hoi", "hi", "hi>e", "hi^", "huoy", "on", "huyon", "hon", "ho^yun", "huon", "hon", "ho/i", "ho/", "ho>"};
+    char test[][20] = {"D", "D^", "xo", "xo^", "mo", "mo)", "mu)o)t", "huye^`n", "huye^`n", "huye^n", "huyen", "hoi", "hi", "hi>e", "hi^", "huoy", "on", "huyon", "hon", "ho^yun", "huon", "hon", "ho/i", "ho/", "ho>"};
     char c[] = {'d', 'd', 'o', 'o', 'w', 'w', 's', 'z', 's', 'r', 'r', 's', 'r', 'n', 'r', 'r', 'r', 'r', 'o', 'r', 'r', 'o', 'r', 'r', 'z'};
-    char expect[][15] = {"d^", "dd", "xo^", "xoo", "mo)", "mow", "mu)o)/t", "huye^n", "huye^/n", "huye^>n", "huy>en", "ho/i", "hi>", "hie>n", "hi^>", "huo>y", "o>n", "huy>on", "ho^n", "ho^>yun", "huo>n", "ho^n", "ho>i", "ho>", "ho"};
+    char expect[][15] = {"D^", "Dd", "xo^", "xoo", "mo)", "mow", "mu)o)/t", "huye^n", "huye^/n", "huye^>n", "huy>en", "ho/i", "hi>", "hie>n", "hi^>", "huo>y", "o>n", "huy>on", "ho^n", "ho^>yun", "huo>n", "ho^n", "ho>i", "ho>", "ho"};
     for(i = 0; i < 25; i++) {
         printf("\nInput: %s\n", test[i]);
         printf("Input Char: %c\n", c[i]);
