@@ -171,13 +171,13 @@ int telex(char *word, char c) {
     char end_cons[3] = {};
     int i;
     for(i = 0; i < 4; i++) {
-        // Divide the word into sections.
+        // Divide the word into sections with magic regex.
         char temp[strlen(word) + 1];
         cpy_range(temp, word, group_array[i].rm_so, group_array[i].rm_eo);
         if(i == 1) strcpy(beg_cons, temp);
         else if(i == 2) strcpy(vowels, temp);
         else if(i == 3) strcpy(end_cons, temp);
-        memset(temp, 0, sizeof(temp));
+        temp[0] = 0;
     }
     char word_test[strlen(word) + 1];
     strcat(word_test, beg_cons);
@@ -207,34 +207,41 @@ int telex(char *word, char c) {
             // Two of either 'a', 'e', or 'o' puts a hat on em.
             cat_char(vowels, '^');
         } else if(char_comp(c, vowels[v - 1], 0, TAIL)) {
+            // 'a', 'o' or 'u' with a w after gives it a tail.
             cat_char(vowels, ')');
         } else if(char_comp(c, vowels[v - 1], vowels[v - 2], UNDO) ||
                   char_comp(c, vowels[v - 1], 0, UNDO)) {
+            // If mod char is pressed twice, you get just the mod char.
             vowels[v - 1] = c;
+        } else if(vowels[tone_pos] == get_tone(c)) {
+            // If tone char is pressed twice, you get just the char.
+            rem_char(vowels, tone_pos);
+            if(e) cat_char(end_cons, c);
+            else cat_char(vowels, c);
         } else if(e && is_tone(c)) {
             if(tone_pos) {
                 // If a tone character is found.
-                if(!tone && is_tone(vowels[tone_pos])) {
+                if(!tone && tone_pos) {
                     // If tone is 'z', we delete the tone marking.
                     rem_char(vowels, tone_pos);
-                } else if(tone && is_tone(vowels[tone_pos])) {
+                } else if(tone && tone_pos) {
                     // Else, we change the tone marking at the position found.
                     vowels[tone_pos] = tone;
                 } else return 1;
             } else if(tone && !tone_pos && !spec_pos) {
-                // If a tone character isn't found, put it right after the vowels.
-                if(vowel_count < 3) {
-                    cat_char(vowels, tone);
-                } else if(vowel_count == 3) {
-                    ins_char(vowels, tone, 2);
-                } else return 1;
+                // If a tone character isn't found, put it right
+                // after the vowels.
+                if(vowel_count < 3) cat_char(vowels, tone);
+                else if(vowel_count == 3) ins_char(vowels, tone, 2);
+                else return 1;
             } else if(tone && spec_pos) {
                 // If there is a ')' or '^' tone always goes there.
                 ins_char(vowels, tone, spec_pos + 1);
             } else return 1;
         } else if(!e) {
             if(tone_pos != strlen(vowels) - 1 && is_end_cons(c)) {
-                // If a tone char is found and there are 2 vowels, move it to after the last vowel.
+                // If a tone char is found and there are 2 vowels,
+                // move it to after the last vowel.
                 if (vowel_count == 2) {
                     char tone_char = vowels[tone_pos];
                     rem_char(vowels, tone_pos);
@@ -242,7 +249,8 @@ int telex(char *word, char c) {
                     cat_char(vowels, c);
                 } else return 1;
             } else if(is_tone(c)) {
-                // If no ending, move tone to right after or after the first vowel depending on number of.
+                // If no ending, move tone to right after the vowels
+                // or after the first vowel depending on number of.
                 if(spec_pos && vowel_count < 4) {
                     ins_char(vowels, tone, spec_pos + 1);
                 } else if(tone_pos && vowel_count < 4) {
@@ -257,20 +265,20 @@ int telex(char *word, char c) {
         } else return 1;
     } else return 1;
     // Cat all the goodness together.
-    char temp2[b + v + e];
-    strcpy(temp2, beg_cons);
-    strcat(temp2, vowels);
-    strcat(temp2, end_cons);
-    strcpy(word, temp2);
+    char temp[strlen(word) + 1];
+    strcpy(temp, beg_cons);
+    strcat(temp, vowels);
+    strcat(temp, end_cons);
+    strcpy(word, temp);
     return 0;
 }
 int main() {
     printf("Tone &c tests.\n\n");
     int i;
-    char test[][20] = {"D", "D^", "xo", "xo^", "mo", "mo)", "mu)o)t", "huye^`n", "huye^`n", "huye^n", "huyen", "hoi", "hi", "hi>e", "hi^", "huoy", "on", "huyon", "hon", "ho^yun", "huon", "hon", "ho/i", "ho/", "ho>"};
-    char c[] = {'d', 'd', 'o', 'o', 'w', 'w', 's', 'z', 's', 'r', 'r', 's', 'r', 'n', 'r', 'r', 'r', 'r', 'o', 'r', 'r', 'o', 'r', 'r', 'z'};
-    char expect[][15] = {"D^", "Dd", "xo^", "xoo", "mo)", "mow", "mu)o)/t", "huye^n", "huye^/n", "huye^>n", "huy>en", "ho/i", "hi>", "hie>n", "hi^>", "huo>y", "o>n", "huy>on", "ho^n", "ho^>yun", "huo>n", "ho^n", "ho>i", "ho>", "ho"};
-    for(i = 0; i < 25; i++) {
+    char test[][20] = {"D", "D^", "xo", "xo^", "mo", "mo)", "mu)o)t", "huye^`n", "huye^`n", "huye^n", "huyen", "hoi", "hi", "hi>e", "hi^", "huoy", "on", "huyon", "hon", "ho^yun", "huon", "hon", "ho/i", "ho/", "ho>", "ho>", "ho>n"};
+    char c[] = {'d', 'd', 'o', 'o', 'w', 'w', 's', 'z', 's', 'r', 'r', 's', 'r', 'n', 'r', 'r', 'r', 'r', 'o', 'r', 'r', 'o', 'r', 'r', 'z', 'r', 'r'};
+    char expect[][15] = {"D^", "Dd", "xo^", "xoo", "mo)", "mow", "mu)o)/t", "huye^n", "huye^/n", "huye^>n", "huy>en", "ho/i", "hi>", "hie>n", "hi^>", "huo>y", "o>n", "huy>on", "ho^n", "ho^>yun", "huo>n", "ho^n", "ho>i", "ho>", "ho", "hor", "honr"};
+    for(i = 0; i < 27; i++) {
         printf("\nInput: %s\n", test[i]);
         printf("Input Char: %c\n", c[i]);
         if(telex(test[i], c[i])) printf("||Not valid Vietnamese.||\n");
