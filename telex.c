@@ -6,11 +6,7 @@
 
 #define REGEX "^(ngh|d\\^|ch|gh|kh|nh|ng|ph|th|tr|qu|[bcdghklmnpqrstvx]?)([aeiouy\\^)`\\/>~.]*)(ch|nh|ng|[cmnpt]?)$"
 
-enum comp {
-    HAT,
-    TAIL,
-    UNDO
-};
+enum comp {HAT, TAIL, UNDO};
 
 int char_comp(char char1, char char2, char char3, enum comp flag) {
     int comp = 0;
@@ -46,8 +42,7 @@ int char_comp(char char1, char char2, char char3, enum comp flag) {
 }
 
 void rem_char(char *str1, int pos) {
-    int len = strlen(str1);
-    int i;
+    int i, len = strlen(str1);
     char buff[20];
     for(i = 0; i < len; i++) {
         if(i > pos) buff[i - 1] = str1[i];
@@ -58,8 +53,7 @@ void rem_char(char *str1, int pos) {
 }
 
 void ins_char(char *str1, char c, int pos) {
-    int len = strlen(str1);
-    int i;
+    int i, len = strlen(str1);
     char buff[20];
     for(i = 0; i < len + 1; ++i) {
         if(i == pos) buff[i] = c;
@@ -71,104 +65,40 @@ void ins_char(char *str1, char c, int pos) {
 }
 
 void cat_char(char *str1, char c) {
-    int len;
-    for(len = 0; str1[len] != 0; len++);
+    int len = strlen(str1);
     str1[len] = c;
     str1[len + 1] = 0;
 }
 
 void cpy_range(char *str1, char *str2, int x1, int x2) {
     int i, j = 0;
-    for(i = x1; i < x2; i++, ++j) {
-        str1[j] = str2[i];
-    }
+    for(i = x1; i < x2; i++, ++j) str1[j] = str2[i];
     str1[j] = 0;
 }
 
-int is_vowel(char c) {
-    int vowel = 0;
-    switch(tolower(c)) {
-        case 'a':
-        case 'e':
-        case 'i':
-        case 'o':
-        case 'u':
-        case 'y':
-            vowel = 1;
-            break;
-    }
-    return vowel;
-}
-
 char get_tone(char c) {
-    char tone;
-    switch(tolower(c)) {
-        case 'z':
-            tone = 0;
-            break;
-        case 'f':
-            tone = '`';
-            break;
-        case 's':
-            tone = '/';
-            break;
-        case 'r':
-            tone = '>';
-            break;
-        case 'x':
-            tone = '~';
-            break;
-        case 'j':
-            tone = '.';
-            break;
-    }
+    char tone = 0;
+    char d = tolower(c);
+         if(d == 'z') tone = 'z';
+    else if(d == 'f') tone = '`';
+    else if(d == 's') tone = '/';
+    else if(d == 'r') tone = '>';
+    else if(d == 'x') tone = '~';
+    else if(d == 'j') tone = '.';
     return tone;
-}
-
-int is_tone(char c) {
-    int tone = 0;
-    switch(tolower(c)) {
-        case '`':
-        case '/':
-        case '>':
-        case '~':
-        case '.':
-        case 'z':
-        case 'f':
-        case 's':
-        case 'r':
-        case 'x':
-        case 'j':
-            tone = 1;
-            break;
-    }
-    return tone;
-}
-
-int is_end_cons(char c) {
-    int end_cons = 0;
-    switch(tolower(c)) {
-        case 'c':
-        case 'm':
-        case 'n':
-        case 'p':
-        case 't':
-            end_cons = 1;
-            break;
-    }
-    return end_cons;
 }
 
 int telex(char *word, char c) {
+    // Make sure c is alphabetic and not 'i' or 'y'.
+    if(!isalpha(c)) return 1;
+    if(tolower(c) == 'i' || tolower(c) == 'y') return 1;
     char regex_word[150] = REGEX;
     regex_t regex_compiled;
     regmatch_t group_array[4];
     regcomp(&regex_compiled, regex_word, REG_EXTENDED|REG_ICASE);
     if(regexec(&regex_compiled, word, 4, group_array, 0)) return 1;
     regfree(&regex_compiled);
-    char beg_cons[4] = {};
-    char vowels[10] = {};
-    char end_cons[3] = {};
+    char beg_cons[4], vowels[10], end_cons[3];
     int i;
     for(i = 0; i < 4; i++) {
         // Divide the word into sections with magic regex.
@@ -190,9 +120,11 @@ int telex(char *word, char c) {
     int e = strlen(end_cons);
     int vowel_count = 0, spec_pos = 0, tone_pos = 0;
     for(i = 0; i < v; i++) {
-        if(is_vowel(vowels[i])) vowel_count++;
-        else if(vowels[i] == ')' || vowels[i] == '^') spec_pos = i;
-        else if(is_tone(vowels[i])) tone_pos = i;
+        char d = vowels[i];
+        if(d == ')' || d == '^') spec_pos = i;
+        else if(d == '`' || d == '/' || d == '>'
+                || d == '~' || d == '.') tone_pos = i;
+        else vowel_count++;
     }
     char tone = get_tone(c);
     if(b && !v && !e) {
@@ -213,15 +145,15 @@ int telex(char *word, char c) {
                   char_comp(c, vowels[v - 1], 0, UNDO)) {
             // If mod char is pressed twice, you get just the mod char.
             vowels[v - 1] = c;
-        } else if(vowels[tone_pos] == get_tone(c)) {
+        } else if(vowels[tone_pos] == tone) {
             // If tone char is pressed twice, you get just the char.
             rem_char(vowels, tone_pos);
             if(e) cat_char(end_cons, c);
             else cat_char(vowels, c);
-        } else if(e && is_tone(c)) {
+        } else if(e && tone) {
             if(tone_pos) {
                 // If a tone character is found.
-                if(!tone && tone_pos) {
+                if(tone == 'z' && tone_pos) {
                     // If tone is 'z', we delete the tone marking.
                     rem_char(vowels, tone_pos);
                 } else if(tone && tone_pos) {
@@ -239,7 +171,7 @@ int telex(char *word, char c) {
                 ins_char(vowels, tone, spec_pos + 1);
             } else return 1;
         } else if(!e) {
-            if(tone_pos != strlen(vowels) - 1 && is_end_cons(c)) {
+            if(tone_pos != strlen(vowels) - 1 && !tone) {
                 // If a tone char is found and there are 2 vowels,
                 // move it to after the last vowel.
                 if (vowel_count == 2) {
@@ -248,14 +180,15 @@ int telex(char *word, char c) {
                     cat_char(vowels, tone_char);
                     cat_char(vowels, c);
                 } else return 1;
-            } else if(is_tone(c)) {
+            } else if(tone) {
                 // If no ending, move tone to right after the vowels
                 // or after the first vowel depending on number of.
                 if(spec_pos && vowel_count < 4) {
                     ins_char(vowels, tone, spec_pos + 1);
                 } else if(tone_pos && vowel_count < 4) {
-                    if(tone) vowels[tone_pos] = tone;
-                    else rem_char(vowels, tone_pos);
+                    if(tone == 'z') rem_char(vowels, tone_pos);
+                    else if(tone) vowels[tone_pos] = tone;
+                    else return 1;
                 } else if(vowel_count == 3) {
                     ins_char(vowels, tone, 2);
                 } else if(vowel_count < 3) {
@@ -290,8 +223,8 @@ int main() {
     }
     printf("Completed.\n\n");
     printf("Normal usage tests.\n\n");
-    char norm_test[][15] = {"", "ba", "hu>oy", "xo^"};
-    char norm_c[] = {'a', 'y', 'n', 'w'};
+    char norm_test[][15] = {"", "bae", "hu>oy", "xo^"};
+    char norm_c[] = {'a', 'o', 'n', 'w'};
     for(i = 0; i < 3; i++) {
         if(!telex(norm_test[i], norm_c[i])) {
             printf("||Failure!||\n");
