@@ -77,15 +77,14 @@ void cpy_range(char *str1, char *str2, int x1, int x2) {
 }
 
 char get_tone(char c) {
-    char tone = 0;
     char d = tolower(c);
-         if(d == 'z') tone = 'z';
-    else if(d == 'f') tone = '`';
-    else if(d == 's') tone = '/';
-    else if(d == 'r') tone = '>';
-    else if(d == 'x') tone = '~';
-    else if(d == 'j') tone = '.';
-    return tone;
+         if(d == 'z') return 'z';
+    else if(d == 'f') return '`';
+    else if(d == 's') return '/';
+    else if(d == 'r') return '>';
+    else if(d == 'x') return '~';
+    else if(d == 'j') return '.';
+    else return 0;
 }
 
 int telex(char *word, char c) {
@@ -104,7 +103,7 @@ int telex(char *word, char c) {
         // Divide the word into sections with magic regex.
         char temp[strlen(word) + 1];
         cpy_range(temp, word, group_array[i].rm_so, group_array[i].rm_eo);
-        if(i == 1) strcpy(beg_cons, temp);
+             if(i == 1) strcpy(beg_cons, temp);
         else if(i == 2) strcpy(vowels, temp);
         else if(i == 3) strcpy(end_cons, temp);
         temp[0] = 0;
@@ -152,26 +151,22 @@ int telex(char *word, char c) {
             else cat_char(vowels, c);
         } else if(e && tone) {
             if(tone_pos) {
-                // If a tone character is found.
-                if(tone == 'z' && tone_pos) {
-                    // If tone is 'z', we delete the tone marking.
-                    rem_char(vowels, tone_pos);
-                } else if(tone && tone_pos) {
-                    // Else, we change the tone marking at the position found.
-                    vowels[tone_pos] = tone;
-                } else return 1;
-            } else if(tone && !tone_pos && !spec_pos) {
+                // If tone is 'z', we delete the tone marking.
+                if(tone == 'z') rem_char(vowels, tone_pos);
+                // Else, we change the tone marking at the position found.
+                else vowels[tone_pos] = tone;
+            } else if(spec_pos) {
+                // If there is a ')' or '^' tone always goes there.
+                ins_char(vowels, tone, spec_pos + 1);
+            } else {
                 // If a tone character isn't found, put it right
                 // after the vowels.
                 if(vowel_count < 3) cat_char(vowels, tone);
                 else if(vowel_count == 3) ins_char(vowels, tone, 2);
                 else return 1;
-            } else if(tone && spec_pos) {
-                // If there is a ')' or '^' tone always goes there.
-                ins_char(vowels, tone, spec_pos + 1);
-            } else return 1;
+            }
         } else if(!e) {
-            if(tone_pos != strlen(vowels) - 1 && !tone) {
+            if(tone_pos && tone_pos != v - 1 && !tone) {
                 // If a tone char is found and there are 2 vowels,
                 // move it to after the last vowel.
                 if (vowel_count == 2) {
@@ -206,7 +201,7 @@ int telex(char *word, char c) {
     return 0;
 }
 int main() {
-    printf("Tone &c tests.\n\n");
+    printf("Tone &c tests.\n");
     int i;
     char test[][20] = {"D", "D^", "xo", "xo^", "mo", "mo)", "mu)o)t", "huye^`n", "huye^`n", "huye^n", "huyen", "hoi", "hi", "hi>e", "hi^", "huoy", "on", "huyon", "hon", "ho^yun", "huon", "hon", "ho/i", "ho/", "ho>", "ho>", "ho>n"};
     char c[] = {'d', 'd', 'o', 'o', 'w', 'w', 's', 'z', 's', 'r', 'r', 's', 'r', 'n', 'r', 'r', 'r', 'r', 'o', 'r', 'r', 'o', 'r', 'r', 'z', 'r', 'r'};
@@ -222,14 +217,14 @@ int main() {
         }
     }
     printf("Completed.\n\n");
-    printf("Normal usage tests.\n\n");
+    printf("\nNormal usage tests.\n");
     char norm_test[][15] = {"", "bae", "hu>oy", "xo^"};
     char norm_c[] = {'a', 'o', 'n', 'w'};
     for(i = 0; i < 3; i++) {
+        printf("\nInput: %s\n", norm_test[i]);
+        printf("Input Char: %c\n", norm_c[i]);
         if(!telex(norm_test[i], norm_c[i])) {
             printf("||Failure!||\n");
-            printf("\nInput: %s\n", norm_test[i]);
-            printf("Input Char: %c\n", norm_c[i]);
         }
     }
     printf("Completed.\n");
